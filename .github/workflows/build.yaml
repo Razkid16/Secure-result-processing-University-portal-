@@ -26,25 +26,17 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
 
       - name: Enable Corepack (pnpm/yarn support)
         run: corepack enable
 
-      - name: Cache node_modules (keyed by lockfile)
-        id: node-cache
+      - name: Cache pnpm store
         uses: actions/cache@v4
         with:
-          path: |
-            **/node_modules
-            ~/.cache/pnpm
-            ~/.npm
-            ~/.yarn
-          key: ${{ runner.os }}-node-${{ hashFiles('**/pnpm-lock.yaml', '**/yarn.lock', '**/package-lock.json') }}
+          path: ~/.cache/pnpm
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
 
       - name: Install dependencies
         working-directory: ${{ env.PACKAGE_DIRECTORY }}
         shell: bash
-        run: |
-          if [ -f pnpm-lock.yaml ]; then
-            pnpm insta
+        run: pnpm install --frozen-lockfile
