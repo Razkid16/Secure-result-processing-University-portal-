@@ -2,6 +2,7 @@ name: Typescript App setup
 
 on:
   workflow_dispatch:
+    inputs:
       branch:
         description: 'Branch to build from'
         required: true
@@ -9,8 +10,7 @@ on:
 
 env:
   PACKAGE_DIRECTORY: '.'
-  NODE_VERSION: '20.x' # LTS suitable for most TS/React builds
-
+  NODE_VERSION: '20.x'
 
 jobs:
   build:
@@ -21,30 +21,36 @@ jobs:
         with:
           ref: ${{ github.event.inputs.branch }}
 
-      # ---------- TypeScript build pipeline ----------
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          cache: 'pnpm'                            # <- was 'npm'
+          cache-dependency-path: pnpm-lock.yaml    # <- points to your lockfile
 
-      - name: Enable Corepack (pnpm/yarn support)
-        run: corepack enable
+      - name: Enable Corepack & ensure pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@9 --activate       # or the version you use
 
       - name: Cache node_modules (keyed by lockfile)
-        id: node-cache
         uses: actions/cache@v4
         with:
           path: |
             **/node_modules
             ~/.cache/pnpm
-            ~/.npm
-            ~/.yarn
-          key: ${{ runner.os }}-node-${{ hashFiles('**/pnpm-lock.yaml', '**/yarn.lock', '**/package-lock.json') }}
+          key: ${{ runner.os }}-node-${{ hashFiles('**/pnpm-lock.yaml') }}
 
       - name: Install dependencies
         working-directory: ${{ env.PACKAGE_DIRECTORY }}
         shell: bash
         run: |
           if [ -f pnpm-lock.yaml ]; then
-            pnpm insta
+            pnpm install --frozen-lockfile
+          elif [ -f yarn.lock ]; then
+            yarn install --frozen-lockfile
+          elif [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
