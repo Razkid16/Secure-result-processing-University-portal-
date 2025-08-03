@@ -1,0 +1,50 @@
+name: Typescript App setup
+
+on:
+  workflow_dispatch:
+      branch:
+        description: 'Branch to build from'
+        required: true
+        default: 'dev'
+
+env:
+  PACKAGE_DIRECTORY: '.'
+  NODE_VERSION: '20.x' # LTS suitable for most TS/React builds
+
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository (selected branch)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.branch }}
+
+      # ---------- TypeScript build pipeline ----------
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Enable Corepack (pnpm/yarn support)
+        run: corepack enable
+
+      - name: Cache node_modules (keyed by lockfile)
+        id: node-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            **/node_modules
+            ~/.cache/pnpm
+            ~/.npm
+            ~/.yarn
+          key: ${{ runner.os }}-node-${{ hashFiles('**/pnpm-lock.yaml', '**/yarn.lock', '**/package-lock.json') }}
+
+      - name: Install dependencies
+        working-directory: ${{ env.PACKAGE_DIRECTORY }}
+        shell: bash
+        run: |
+          if [ -f pnpm-lock.yaml ]; then
+            pnpm insta
